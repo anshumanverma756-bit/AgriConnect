@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  farmer
+  buyer
+  admin
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  location  String
+  createdAt DateTime @default(now())
+
+  crops           Crops[]
+  offers          Offer[]          @relation("BuyerOffers")
+  storageListings StorageListing[] @relation("StorageOwner")
+}
+
+model Crops {
+  id           String   @id @default(uuid())
+  farmer       User     @relation(fields: [farmerId], references: [id])
+  farmerId     String
+  name         String
+  quantity     Float
+  qualityGrade String
+  price        Float
+  location     String
+  photoUrl     String?
+  status       String   @default("listed") // listed | reserved | sold
+  createdAt    DateTime @default(now())
+
+  offers Offer[]
+
+  @@index([farmerId])
+  @@index([status])
+}
+
+model Offer {
+  id         String   @id @default(uuid())
+  crop       Crops    @relation(fields: [cropId], references: [id])
+  cropId     String
+  buyer      User     @relation("BuyerOffers", fields: [buyerId], references: [id])
+  buyerId    String
+  offerPrice Float
+  status     String   @default("pending") // pending | accepted | rejected
+  createdAt  DateTime @default(now())
+
+  transaction Transaction?
+
+  @@index([cropId])
+  @@index([buyerId])
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  offer         Offer    @relation(fields: [offerId], references: [id])
+  offerId       String   @unique
+  status        String   @default("confirmed") // confirmed | completed | cancelled
+  paymentStatus String   @default("pending")   // pending | paid | failed
+  createdAt     DateTime @default(now())
+}
+
+model PriceRecord {
+  id         String   @id @default(uuid())
+  commodity  String
+  market     String
+  state      String
+  minPrice   Float
+  maxPrice   Float
+  modalPrice Float
+  date       DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([commodity, market])
+}
+
+model StorageListing {
+  id              String   @id @default(uuid())
+  owner           User     @relation("StorageOwner", fields: [ownerId], references: [id])
+  ownerId         String
+  location        String
+  capacity        Float
+  pricePerWeek    Float
+  cropSuitability String
+  isAvailable     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([ownerId])
+}
